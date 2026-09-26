@@ -1,6 +1,6 @@
 {
   "name": "pi-brave-search",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Minimal web search tool for Pi coding agent, backed by the Brave LLM Context API.",
   "type": "module",
   "keywords": [

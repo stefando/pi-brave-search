@@ -21,15 +21,22 @@ Parameters:
 | `includeContent` | boolean | request the full extracted content per source (16k token budget instead of 4k) |
 | `recencyFilter` | `day` \| `week` \| `month` \| `year` | restrict to a time period |
 
-Also: `/brave-status` command to check whether a key is configured.
+Also: `/brave-status` command to check whether a keychain entry exists (reports only a yes/no — no key material is ever shown).
 
 ## Setup
 
+Store the key in the macOS keychain (one-time):
+
 ```sh
-export BRAVE_API_KEY=BSA_...   # get a key at https://brave.com/search/api/
+security add-generic-password -s pi-brave-search -a brave-api-key -w 'BSA_...'
 ```
 
-The key is read from the environment **at call time**.
+(Replace `BSA_...` with your key from https://brave.com/search/api/.)
+
+The key is read from the keychain **at call time** — rotate it in the keychain
+and it applies on the very next search, no restart. Nothing key-related is ever
+written to a plain file, and if the entry is missing the tool fails loudly with
+the exact command to store it.
 
 ## Install into Pi
 
@@ -56,15 +63,15 @@ pi --extension ./extensions/index.ts   # load without installing
 
 Inherited from hard-won lessons (see the `pi-web-access` fork this started as):
 
-1. **Credential redaction** — the key is stripped from every error message; Brave echoes
-   `X-Subscription-Token` in some error bodies.
+1. **Credential hygiene** — the key lives only in the macOS keychain, is stripped
+   from every error message (Brave echoes `X-Subscription-Token` in some error
+   bodies), and is never displayed by any command or status output.
 2. **Timeout + abort** — hard 30s timeout, combined with the caller's abort signal.
 3. **Bounded output** — results are capped at 20; inline content is capped at 8k chars
    per source so one long page can't blow the context window.
 
 ## Roadmap
 
-- [ ] key from macOS keychain (fall back to env) — `security find-generic-password`
 - [ ] domain allow/block filters
 - [ ] store full results out-of-context, retrievable by id (like `pi-web-access`'s `responseId`)
 - [ ] upstream the `llm/context` support into `pi-web-access` (this project began as that fork)

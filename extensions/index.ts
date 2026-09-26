@@ -1,21 +1,25 @@
 /**
  * pi-brave-search — web search via the Brave LLM Context API.
  *
- * Deliberately minimal (v0.1):
+ * Deliberately minimal (v0.2):
  * - ONE tool: brave_search
- * - ONE key:  BRAVE_API_KEY environment variable (https://brave.com/search/api/)
+ * - ONE key:  macOS keychain entry (service "pi-brave-search", account
+ *   "brave-api-key") — never a plain file on disk
  * - no fallbacks, no caching, no curation — failures surface as plain errors
  *   so you can see exactly what went wrong
  *
- * Three non-negotiables inherited from real-world use:
- * 1. the key is read at call time, so exporting a new key + restart works
+ * Non-negotiables inherited from real-world use:
+ * 1. the key is read at call time — rotate it in the keychain, no restart
  * 2. the key is redacted from every error message (Brave echoes the
- *    X-Subscription-Token back in some error bodies)
+ *    X-Subscription-Token back in some error bodies) and is never shown
+ *    by any command or status output
  * 3. hard 30s timeout + caller abort propagation
+ * 4. no key in keychain → loud, actionable failure (no silent env fallback)
  *
- * Roadmap (see README): keychain key source, domain filters,
- * responseId storage for full content.
+ * Roadmap (see README): domain filters, responseId storage for full content.
  */
+
+import { execFileSync } from "node:child_process";
 
 import { Text } from "@earendil-works/pi-tui";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -57,10 +61,37 @@ interface BraveGroundingSource {
 	snippets?: string[];
 }
 
-/** v0.1: environment only. v0.2 will try macOS keychain first. */
+const KEYCHAIN_SERVICE = "pi-brave-search";
+const KEYCHAIN_ACCOUNT = "brave-api-key";
+
+/**
+ * Read the key from the macOS keychain at call time.
+ * Returns null when the entry does not exist, the keychain is locked,
+ * or we are not on macOS (in which case the tool fails loudly).
+ */
 function getApiKey(): string | null {
-	const key = process.env.BRAVE_API_KEY;
-	return key && key.trim() !== "" ? key.trim() : null;
+	try {
+		const out = execFileSync(
+			"security",
+			["find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", KEYCHAIN_ACCOUNT, "-w"],
+			{ encoding: "utf8", timeout: 5_000, stdio: ["ignore", "pipe", "ignore"] },
+		);
+		return out.trim() !== "" ? out.trim() : null;
+	} catch {
+		return null;
+	}
+}
+
+function keychainSetupInstructions(): string {
+	return (
+		`brave_search is not configured: no keychain entry (service "${KEYCHAIN_SERVICE}", ` +
+		`account "${KEYCHAIN_ACCOUNT}"). Store a key with:
+` +
+		`  security add-generic-password -s ${KEYCHAIN_SERVICE} -a ${KEYCHAIN_ACCOUNT} -w 'BSA_...'
+` +
+		`Get a key at https://brave.com/search/api/. ` +
+		`The first read after storing may prompt for keychain access (choose "Always Allow").`
+	);
 }
 
 function redact(text: string, key: string | null): string {
@@ -80,11 +111,7 @@ export default function (pi: ExtensionAPI) {
 		async execute(_toolCallId, params, signal?: AbortSignal) {
 			const apiKey = getApiKey();
 			if (!apiKey) {
-				throw new Error(
-					"brave_search is not configured: the BRAVE_API_KEY environment variable is not set. " +
-						"Get a key at https://brave.com/search/api/, then `export BRAVE_API_KEY=BSA_...` " +
-						"in the environment that launches pi and restart pi.",
-				);
+				throw new Error(keychainSetupInstructions());
 			}
 
 			const query = params.query.trim();
@@ -152,18 +179,13 @@ export default function (pi: ExtensionAPI) {
 
 	pi.registerCommand("brave-status", {
 		description: "Show brave_search configuration status",
-		handler: async (_args, ctx) => {
-			const key = getApiKey();
-			if (key) {
-				ctx.ui.notify(
-					`brave_search: configured (BRAVE_API_KEY set, ${key.slice(0, 6)}…, ${key.length} chars)`,
-					"info",
-				);
+			handler: async (_args, ctx) => {
+			// Boolean check only — no part of the key is ever displayed.
+			const configured = getApiKey() !== null;
+			if (configured) {
+				ctx.ui.notify(`brave_search: configured (key in macOS keychain)`, "info");
 			} else {
-				ctx.ui.notify(
-					"brave_search: BRAVE_API_KEY is not set — the tool will fail until you export it and restart pi",
-					"warning",
-				);
+				ctx.ui.notify("brave_search: NOT configured — see the error text of a brave_search call", "warning");
 			}
 		},
 	});
