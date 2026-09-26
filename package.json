@@ -17,12 +17,15 @@
     "extensions"
   ],
   "scripts": {
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "0.86.1",
     "@earendil-works/pi-coding-agent": "0.86.1",
     "@earendil-works/pi-tui": "0.86.1",
+    "prettier": "^3.9.9",
     "typebox": "1.3.27",
     "typescript": "^5.5.0"
   },

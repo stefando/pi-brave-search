@@ -14,12 +14,12 @@ synthesize without further fetching.
 
 Parameters:
 
-| Parameter | Type | Notes |
-|---|---|---|
-| `query` | string | required |
-| `numResults` | number | 1–20, default 5 |
-| `includeContent` | boolean | request more query-relevant extracted chunks per source (16k token budget instead of 4k) |
-| `recencyFilter` | `day` \| `week` \| `month` \| `year` | restrict to a time period |
+| Parameter        | Type                                 | Notes                                                                                    |
+| ---------------- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `query`          | string                               | required                                                                                 |
+| `numResults`     | number                               | 1–20, default 5                                                                          |
+| `includeContent` | boolean                              | request more query-relevant extracted chunks per source (16k token budget instead of 4k) |
+| `recencyFilter`  | `day` \| `week` \| `month` \| `year` | restrict to a time period                                                                |
 
 Also: `/brave-status` command to check whether a keychain entry exists (reports only a yes/no — no key material is ever shown).
 

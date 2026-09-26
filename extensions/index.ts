@@ -41,7 +41,11 @@ const FRESHNESS: Record<string, string> = {
 
 const Params = Type.Object({
   query: Type.String({ description: "Search query" }),
-  numResults: Type.Optional(Type.Number({ description: `Number of results, 1-${MAX_RESULTS} (default ${DEFAULT_RESULTS})` })),
+  numResults: Type.Optional(
+    Type.Number({
+      description: `Number of results, 1-${MAX_RESULTS} (default ${DEFAULT_RESULTS})`,
+    }),
+  ),
   includeContent: Type.Optional(
     Type.Boolean({
       description:
@@ -49,9 +53,17 @@ const Params = Type.Object({
     }),
   ),
   recencyFilter: Type.Optional(
-    Type.Union([Type.Literal("day"), Type.Literal("week"), Type.Literal("month"), Type.Literal("year")], {
-      description: "Only include results from this time period",
-    }),
+    Type.Union(
+      [
+        Type.Literal("day"),
+        Type.Literal("week"),
+        Type.Literal("month"),
+        Type.Literal("year"),
+      ],
+      {
+        description: "Only include results from this time period",
+      },
+    ),
   ),
 });
 
@@ -73,7 +85,14 @@ function getApiKey(): string | null {
   try {
     const out = execFileSync(
       "security",
-      ["find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", KEYCHAIN_ACCOUNT, "-w"],
+      [
+        "find-generic-password",
+        "-s",
+        KEYCHAIN_SERVICE,
+        "-a",
+        KEYCHAIN_ACCOUNT,
+        "-w",
+      ],
       { encoding: "utf8", timeout: 5_000, stdio: ["ignore", "pipe", "ignore"] },
     );
     return out.trim() !== "" ? out.trim() : null;
@@ -131,7 +150,10 @@ export default function (pi: ExtensionAPI) {
       url.searchParams.set("maximum_number_of_urls", String(numResults));
       // LLM Context API is token-budgeted: small budget for snippets,
       // larger budget when the caller wants the extracted content.
-      url.searchParams.set("maximum_number_of_tokens", params.includeContent ? "16384" : "4096");
+      url.searchParams.set(
+        "maximum_number_of_tokens",
+        params.includeContent ? "16384" : "4096",
+      );
       if (params.recencyFilter) {
         url.searchParams.set("freshness", FRESHNESS[params.recencyFilter]);
       }
@@ -142,7 +164,11 @@ export default function (pi: ExtensionAPI) {
             "X-Subscription-Token": apiKey,
             Accept: "application/json",
           },
-          signal: AbortSignal.any(signal ? [AbortSignal.timeout(TIMEOUT_MS), signal] : [AbortSignal.timeout(TIMEOUT_MS)]),
+          signal: AbortSignal.any(
+            signal
+              ? [AbortSignal.timeout(TIMEOUT_MS), signal]
+              : [AbortSignal.timeout(TIMEOUT_MS)],
+          ),
         });
 
         if (!response.ok) {
@@ -150,13 +176,17 @@ export default function (pi: ExtensionAPI) {
           // Redact FIRST, then truncate: truncating first could cut a full
           // echoed key into a fragment that no longer matches for redaction.
           const safe = redact(body, apiKey);
-          throw new Error(`Brave API error ${response.status}: ${safe.slice(0, 300)}`);
+          throw new Error(
+            `Brave API error ${response.status}: ${safe.slice(0, 300)}`,
+          );
         }
 
         const data = (await response.json()) as {
           grounding?: { generic?: BraveGroundingSource[] };
         };
-        const sources = (data.grounding?.generic ?? []).filter((s) => s.url).slice(0, numResults);
+        const sources = (data.grounding?.generic ?? [])
+          .filter((s) => s.url)
+          .slice(0, numResults);
         return buildResult(query, sources, params.includeContent === true);
       } catch (err) {
         // Never let the key leak into the error the agent (or a log) sees.
@@ -170,7 +200,12 @@ export default function (pi: ExtensionAPI) {
     },
 
     renderCall(args: { query?: string }, theme) {
-      return new Text(theme.fg("toolTitle", theme.bold("brave_search ")) + theme.fg("muted", `"${args.query ?? ""}"`), 0, 0);
+      return new Text(
+        theme.fg("toolTitle", theme.bold("brave_search ")) +
+          theme.fg("muted", `"${args.query ?? ""}"`),
+        0,
+        0,
+      );
     },
 
     renderResult(result, _exp, theme) {
@@ -184,13 +219,19 @@ export default function (pi: ExtensionAPI) {
 
   pi.registerCommand("brave-status", {
     description: "Show brave_search configuration status",
-      handler: async (_args, ctx) => {
+    handler: async (_args, ctx) => {
       // Boolean check only — no part of the key is ever displayed.
       const configured = getApiKey() !== null;
       if (configured) {
-        ctx.ui.notify(`brave_search: configured (key in macOS keychain)`, "info");
+        ctx.ui.notify(
+          `brave_search: configured (key in macOS keychain)`,
+          "info",
+        );
       } else {
-        ctx.ui.notify("brave_search: NOT configured — see the error text of a brave_search call", "warning");
+        ctx.ui.notify(
+          "brave_search: NOT configured — see the error text of a brave_search call",
+          "warning",
+        );
       }
     },
   });
@@ -202,11 +243,19 @@ interface BraveDetails {
   resultCount: number;
 }
 
-function buildResult(query: string, sources: BraveGroundingSource[], includeContent: boolean) {
+function buildResult(
+  query: string,
+  sources: BraveGroundingSource[],
+  includeContent: boolean,
+) {
   if (sources.length === 0) {
     return {
       content: [{ type: "text" as const, text: `No results for "${query}"` }],
-      details: { provider: "brave-llm-context", query, resultCount: 0 } as BraveDetails,
+      details: {
+        provider: "brave-llm-context",
+        query,
+        resultCount: 0,
+      } as BraveDetails,
     };
   }
 
@@ -220,7 +269,9 @@ function buildResult(query: string, sources: BraveGroundingSource[], includeCont
     const snippets = source.snippets ?? [];
     // Each snippet exactly once: the leading chunk alone (default) or all
     // chunks combined (includeContent) — capped to MAX_CONTENT_CHARS.
-    const combined = includeContent ? snippets.join("\n\n") : (snippets[0] ?? "");
+    const combined = includeContent
+      ? snippets.join("\n\n")
+      : (snippets[0] ?? "");
     if (combined) {
       const bounded =
         combined.length > MAX_CONTENT_CHARS
@@ -233,6 +284,10 @@ function buildResult(query: string, sources: BraveGroundingSource[], includeCont
 
   return {
     content: [{ type: "text" as const, text: lines.join("\n") }],
-    details: { provider: "brave-llm-context", query, resultCount: sources.length } as BraveDetails,
+    details: {
+      provider: "brave-llm-context",
+      query,
+      resultCount: sources.length,
+    } as BraveDetails,
   };
 }
