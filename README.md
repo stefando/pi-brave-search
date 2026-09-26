@@ -18,7 +18,7 @@ Parameters:
 |---|---|---|
 | `query` | string | required |
 | `numResults` | number | 1–20, default 5 |
-| `includeContent` | boolean | request the full extracted content per source (16k token budget instead of 4k) |
+| `includeContent` | boolean | request more query-relevant extracted chunks per source (16k token budget instead of 4k) |
 | `recencyFilter` | `day` \| `week` \| `month` \| `year` | restrict to a time period |
 
 Also: `/brave-status` command to check whether a keychain entry exists (reports only a yes/no — no key material is ever shown).
@@ -28,10 +28,12 @@ Also: `/brave-status` command to check whether a keychain entry exists (reports 
 Store the key in the macOS keychain (one-time):
 
 ```sh
-security add-generic-password -s pi-brave-search -a brave-api-key -w 'BSA_...'
+security add-generic-password -s pi-brave-search -a brave-api-key -wU
 ```
 
-(Replace `BSA_...` with your key from https://brave.com/search/api/.)
+You will be prompted to type the key — hidden, so it never lands in shell history
+or process arguments. `-U` replaces an existing entry, so the same command also
+rotates the key. (Get a key from https://brave.com/search/api/.)
 
 The key is read from the keychain **at call time** — rotate it in the keychain
 and it applies on the very next search, no restart. Nothing key-related is ever
