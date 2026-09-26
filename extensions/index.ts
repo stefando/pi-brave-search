@@ -106,9 +106,10 @@ function keychainSetupInstructions(): string {
     `brave_search is not configured: no keychain entry (service "${KEYCHAIN_SERVICE}", ` +
     `account "${KEYCHAIN_ACCOUNT}"). Store a key with:
 ` +
-    `  security add-generic-password -s ${KEYCHAIN_SERVICE} -a ${KEYCHAIN_ACCOUNT} -wU
+    `  security add-generic-password -s ${KEYCHAIN_SERVICE} -a ${KEYCHAIN_ACCOUNT} -U -w
 ` +
-    `(type the key at the hidden prompt so it never lands in shell history or process args; ` +
+    `(-w is last on purpose: it makes security prompt for the key at a hidden prompt, ` +
+    `so it never lands in shell history or process args; ` +
     `-U replaces an existing entry, so the same command also rotates it). ` +
     `Get a key at https://brave.com/search/api/. ` +
     `The first read after storing may prompt for keychain access (choose "Always Allow").`

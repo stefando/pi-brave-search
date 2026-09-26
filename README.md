@@ -28,12 +28,14 @@ Also: `/brave-status` command to check whether a keychain entry exists (reports 
 Store the key in the macOS keychain (one-time):
 
 ```sh
-security add-generic-password -s pi-brave-search -a brave-api-key -wU
+security add-generic-password -s pi-brave-search -a brave-api-key -U -w
 ```
 
-You will be prompted to type the key — hidden, so it never lands in shell history
-or process arguments. `-U` replaces an existing entry, so the same command also
-rotates the key. (Get a key from https://brave.com/search/api/.)
+The flag order matters: `-w` is last on purpose, which makes `security` prompt
+for the key at a hidden prompt (never in shell history or process arguments) —
+`-wU` would instead store the literal string `U` as the password. `-U` replaces
+an existing entry, so the same command also rotates the key. (Get a key from
+https://brave.com/search/api/.)
 
 The key is read from the keychain **at call time** — rotate it in the keychain
 and it applies on the very next search, no restart. Nothing key-related is ever
